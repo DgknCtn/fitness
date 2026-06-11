@@ -366,7 +366,7 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-fam
 
 <script>
 // ─── DEFAULTS ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'spor_v2';
+const STORAGE_KEY = 'spor_v3';
 const DAYS_TR = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
 const MONTHS_TR = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 const PILL_TYPES = [
@@ -386,13 +386,13 @@ function uid() { return Date.now().toString(36)+Math.random().toString(36).slice
 function defaultData() {
   return {
     days: {
-      0:{name:'Dinlenme', isTraining:false, color:'swim'},
-      1:{name:'Push',     isTraining:true,  color:'push'},
-      2:{name:'Pull',     isTraining:true,  color:'pull'},
-      3:{name:'Legs',     isTraining:true,  color:'legs'},
-      4:{name:'Push 2',   isTraining:true,  color:'push'},
-      5:{name:'Pull 2',   isTraining:true,  color:'pull'},
-      6:{name:'Dinlenme', isTraining:false, color:'swim'},
+      0:{name:'Dinlenme',      isTraining:false, color:'swim'},
+      1:{name:'Push',          isTraining:true,  color:'push'},
+      2:{name:'Pull',          isTraining:true,  color:'pull'},
+      3:{name:'Legs',          isTraining:true,  color:'legs'},
+      4:{name:'Dinlenme',      isTraining:false, color:'swim'},
+      5:{name:'Push 2',        isTraining:true,  color:'push'},
+      6:{name:'Pull 2 + Legs', isTraining:true,  color:'pull'},
     },
     trainSchedule: [
       {id:uid(), time:'07:30', title:'Sabah Supplement', pills:[{t:'Vitamin C',c:'supp'},{t:'Omega-3',c:'supp'},{t:'Kreatin',c:'supp'}]},
@@ -412,7 +412,49 @@ function defaultData() {
       {id:uid(), time:'19:30', title:'Akşam Yemeği', pills:[{t:'Akşam Yemeği',c:'food'}]},
       {id:uid(), time:'23:00', title:'Uyku Öncesi',  pills:[{t:'Magnesium',c:'supp'}]},
     ],
-    workouts: {1:[],2:[],3:[],4:[],5:[]},
+    workouts: {
+      1:[
+        {id:'p1_1', name:'Plate Loaded Chest Press',       note:'',                              sets:2, reps:'5-6',  warm:'Rir1'},
+        {id:'p1_2', name:'Smith Machine Low Incline Press',note:'',                              sets:2, reps:'5-6',  warm:'Rir1'},
+        {id:'p1_3', name:'Chest Fly Machine',              note:'',                              sets:1, reps:'6-8',  warm:'Failure'},
+        {id:'p1_4', name:'Shoulder Press Machine',         note:'',                              sets:2, reps:'6-8',  warm:'Rir1'},
+        {id:'p1_5', name:'Lateral Raise',                  note:'',                              sets:3, reps:'8-10', warm:'Failure'},
+        {id:'p1_6', name:'Triceps Pushdown',                note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'p1_7', name:'Overhead Rope Extension',        note:'',                              sets:2, reps:'8-10', warm:'Failure'},
+      ],
+      2:[
+        {id:'pu1_1', name:'Lat Pulldown',               note:'',                                 sets:2, reps:'6-8',  warm:'Rir1-Failure'},
+        {id:'pu1_2', name:'Plate Loaded Wide Grip Row', note:'',                                 sets:3, reps:'6-8',  warm:'Rir1-Failure'},
+        {id:'pu1_3', name:'Cable Row',                  note:'',                                 sets:1, reps:'8-10', warm:'Failure'},
+        {id:'pu1_4', name:'Incline Dumbbell Curl',      note:'',                                 sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'pu1_5', name:'Cable Curl',                 note:'',                                 sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'pu1_6', name:'Hammer Curl',                note:'Super Set → Reverse Barbell Curl', sets:2, reps:'8-10', warm:'Failure'},
+      ],
+      3:[
+        {id:'l1_1', name:'Leg Press',           note:'', sets:2, reps:'6-8',  warm:'Rir1-2'},
+        {id:'l1_2', name:'Smith Machine Squat', note:'', sets:2, reps:'6-8',  warm:'Rir1-2'},
+        {id:'l1_3', name:'Leg Extension',       note:'', sets:2, reps:'8-10', warm:'Failure'},
+        {id:'l1_4', name:'Seated Leg Curl',     note:'', sets:3, reps:'8-10', warm:'Rir1'},
+      ],
+      5:[
+        {id:'p2_1', name:'Shoulder Press Machine',         note:'',                              sets:2, reps:'6-8',  warm:'Rir1'},
+        {id:'p2_2', name:'Lateral Raise',                  note:'',                              sets:3, reps:'8-10', warm:'Failure'},
+        {id:'p2_3', name:'Smith Machine Low Incline Press',note:'',                              sets:2, reps:'5-6',  warm:'Rir1'},
+        {id:'p2_4', name:'Chest Fly Machine',              note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'p2_5', name:'Cable Rear Delt Fly',            note:'',                              sets:2, reps:'8-10', warm:'Failure'},
+        {id:'p2_6', name:'Triceps Pushdown',                note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'p2_7', name:'Overhead Rope Extension',        note:'',                              sets:2, reps:'8-10', warm:'Failure'},
+      ],
+      6:[
+        {id:'pu2_1', name:'Plate Loaded Wide Grip Row', note:'',                                 sets:3, reps:'6-8',  warm:'Rir1-Failure'},
+        {id:'pu2_2', name:'Lat Pulldown',               note:'',                                 sets:3, reps:'6-8',  warm:'Rir1-Failure'},
+        {id:'pu2_3', name:'Romanian Deadlift',          note:'',                                 sets:2, reps:'5-6',  warm:'Rir1-2'},
+        {id:'pu2_4', name:'Cable Curl',                 note:'',                                 sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'pu2_5', name:'Hammer Curl',                note:'Super Set → Reverse Barbell Curl', sets:2, reps:'8-10', warm:'Failure'},
+        {id:'pu2_6', name:'Leg Extension',              note:'',                                 sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'pu2_7', name:'Seated Leg Curl',            note:'',                                 sets:1, reps:'8-10', warm:'Failure'},
+      ],
+    },
     trainMeals: [
       {id:uid(), time:'08:00', title:'Kahvaltı',    body:'5 yumurta beyazı + 1 tam\n60g yulaf\n1 muz',  macro:'~480 kcal | P:40g'},
       {id:uid(), time:'12:30', title:'Öğle',        body:'200g tavuk göğsü\n150g pirinç\nSalata',       macro:'~520 kcal | P:55g'},
@@ -528,7 +570,7 @@ function renderDay(dow) {
           <input type="number" class="weight-input" placeholder="kg" value="${savedW}"
             onchange="localStorage.setItem('weight_${ex.id}',this.value)" onclick="this.select()">
           <div class="ex-sets">
-            <span class="warm">${ex.warm||'15 rep @%45'}</span>
+            <span class="warm">${ex.warm||''}</span>
             <span class="work">${ex.sets||'3'} × ${ex.reps||'8–12'}</span>
           </div>
         </div>
@@ -771,8 +813,8 @@ function openEditExercise(idx) {
     <input class="f-input mono" id="ex-sets" type="number" value="${ex.sets||3}" min="1" max="10">
     <label class="f-label">Rep</label>
     <input class="f-input mono" id="ex-reps" value="${ex.reps||'8–12'}" placeholder="8–12, 6, 15...">
-    <label class="f-label">Isınma Seti</label>
-    <input class="f-input mono" id="ex-warm" value="${ex.warm||'15 rep @%45'}" placeholder="15 rep @%45">`;
+    <label class="f-label">Yoğunluk Notu</label>
+    <input class="f-input mono" id="ex-warm" value="${ex.warm||''}" placeholder="Rir1, Failure, Rir1-2...">`;
   document.getElementById('sheet-save').onclick = ()=>{
     const name = document.getElementById('ex-name').value.trim();
     if(!name){ showToast('Egzersiz adı gerekli'); return; }
