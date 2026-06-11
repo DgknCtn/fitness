@@ -1199,7 +1199,7 @@ function renderTrackPage() {
   renderChart(entries);
   renderMeasureHistory(entries);
   renderExerciseSelector();
-  if (activeExId) renderExerciseChart(activeExId);
+  if (activeExName) renderExerciseChart(activeExName);
 }
 
 function renderStatStrip(entries) {
@@ -1413,58 +1413,88 @@ function logWeight(exId, val) {
   if (activeExId === exId) renderExerciseChart(exId);
 }
 
-let activeExId = null;
+let activeExName = null;
 
-function getAllExercises() {
+// Aynı isimli egzersizleri tek grup altında topla
+function getExerciseGroups() {
   const d = getData();
-  const result = [];
+  const groups = new Map(); // küçük harf isim → {name, ids, days}
   Object.entries(d.workouts).forEach(([dow, exs]) => {
-    const dayName = d.days[dow]?.name || '';
-    (exs || []).forEach(ex => result.push({ ...ex, dow: parseInt(dow), dayName }));
+    (exs || []).forEach(ex => {
+      const key = ex.name.toLowerCase().trim();
+      if (!groups.has(key)) {
+        groups.set(key, { name: ex.name, ids: [ex.id], days: [parseInt(dow)] });
+      } else {
+        const g = groups.get(key);
+        if (!g.ids.includes(ex.id))    g.ids.push(ex.id);
+        if (!g.days.includes(parseInt(dow))) g.days.push(parseInt(dow));
+      }
+    });
   });
-  return result;
+  return Array.from(groups.values());
+}
+
+// Gruptaki tüm ID'lerin loglarını tarihe göre birleştir
+function getMergedLogs(group) {
+  const d = getData();
+  const byDate = {};
+  group.ids.forEach(id => {
+    ((d.workoutLogs || {})[id] || []).forEach(({ date, weight }) => {
+      if (!byDate[date] || weight > byDate[date]) byDate[date] = weight;
+    });
+  });
+  return Object.entries(byDate)
+    .map(([date, weight]) => ({ date, weight }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function groupColor(group) {
+  const d = getData();
+  const COLOR = { push:'#ff6b8a', pull:'#6b9fff', legs:'#6bffa0', swim:'#6be8ff', cardio:'#ffb86b' };
+  return COLOR[d.days[group.days[0]]?.color] || '#ff6b8a';
 }
 
 function renderExerciseSelector() {
   const d = getData();
-  const exs = getAllExercises();
+  const groups = getExerciseGroups();
   const container = document.getElementById('ex-selector');
-  if (!exs.length) {
+  if (!groups.length) {
     container.innerHTML = `<div style="color:var(--dim);font-size:12px">Henüz egzersiz eklenmedi.</div>`;
     return;
   }
-  container.innerHTML = exs.map(ex => {
-    const logs = (d.workoutLogs || {})[ex.id] || [];
-    const last = logs.length ? logs[logs.length - 1].weight + ' kg' : '—';
-    const isActive = ex.id === activeExId;
-    const color = { push:'#ff6b8a', pull:'#6b9fff', legs:'#6bffa0', swim:'#6be8ff', cardio:'#ffb86b' }[d.days[ex.dow]?.color] || '#fff';
+  container.innerHTML = groups.map(g => {
+    const logs   = getMergedLogs(g);
+    const last   = logs.length ? logs[logs.length - 1].weight + ' kg' : '—';
+    const isActive = g.name === activeExName;
+    const color  = groupColor(g);
+    // Birden fazla günde varsa gün listesini göster
+    const dayLabels = g.days.map(dow => d.days[dow]?.name || '').join(' + ');
     return `<div class="metric-tab ${isActive ? 'active' : ''}"
       style="${isActive ? `border-color:${color};color:${color}` : ''}"
-      onclick="selectExercise('${ex.id}')">
-      <div style="font-size:11px">${ex.name}</div>
-      <div style="font-size:9px;opacity:.6;margin-top:1px">${last}</div>
+      onclick="selectExercise('${g.name.replace(/'/g,"\\'")}')">
+      <div style="font-size:11px">${g.name}</div>
+      <div style="font-size:9px;opacity:.6;margin-top:1px">${last}${g.days.length > 1 ? ' · ' + dayLabels : ''}</div>
     </div>`;
   }).join('');
 }
 
-function selectExercise(exId) {
-  activeExId = exId;
+function selectExercise(name) {
+  activeExName = name;
   renderExerciseSelector();
-  renderExerciseChart(exId);
+  renderExerciseChart(name);
 }
 
-function renderExerciseChart(exId) {
-  const d = getData();
-  const ex = getAllExercises().find(e => e.id === exId);
-  if (!ex) return;
-  const logs = ((d.workoutLogs || {})[exId] || [])
-    .slice().sort((a, b) => a.date.localeCompare(b.date));
+function renderExerciseChart(name) {
+  const groups = getExerciseGroups();
+  const group  = groups.find(g => g.name === name);
+  if (!group) return;
 
-  const card = document.getElementById('ex-chart-card');
+  const logs  = getMergedLogs(group);
+  const color = groupColor(group);
+  const card  = document.getElementById('ex-chart-card');
   card.style.display = 'block';
-  const color = { push:'#ff6b8a', pull:'#6b9fff', legs:'#6bffa0', swim:'#6be8ff', cardio:'#ffb86b' }[d.days[ex.dow]?.color] || '#ff6b8a';
 
-  document.getElementById('ex-chart-title').textContent = ex.name.toUpperCase();
+  document.getElementById('ex-chart-title').textContent = group.name.toUpperCase();
 
   if (logs.length < 2) {
     document.getElementById('ex-chart-range').textContent = logs.length === 1 ? `${logs[0].weight} kg` : '';
@@ -1475,12 +1505,10 @@ function renderExerciseChart(exId) {
   }
 
   const weights = logs.map(e => e.weight);
-  const minW = Math.min(...weights), maxW = Math.max(...weights);
-  document.getElementById('ex-chart-range').textContent = `${minW} – ${maxW} kg`;
-
-  // buildSVG bekliyor: entries dizi, key string, color, unit
-  const fakeEntries = logs.map(e => ({ date: e.date, w: e.weight }));
-  document.getElementById('ex-chart-area').innerHTML = buildSVG(fakeEntries, 'w', color, 'kg');
+  document.getElementById('ex-chart-range').textContent =
+    `${Math.min(...weights)} – ${Math.max(...weights)} kg`;
+  document.getElementById('ex-chart-area').innerHTML =
+    buildSVG(logs.map(e => ({ date: e.date, w: e.weight })), 'w', color, 'kg');
   document.getElementById('ex-log-list').innerHTML = renderLogList(logs, color);
 }
 
