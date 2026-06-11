@@ -399,7 +399,22 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-fam
         <div class="setting-val">PPL (ayarlanabilir)</div>
       </div>
     </div>
-    <button class="big-btn secondary" onclick="showToast('Safari menüsü → Giriş Ekranına Ekle')">📱 Ana Ekrana Ekle</button>
+    <button class="big-btn secondary" onclick="showToast('Safari → Paylaş → Giriş Ekranına Ekle')">📱 Ana Ekrana Ekle</button>
+
+    <div class="setting-group">
+      <div class="setting-group-title">VERİ AKTARIMI</div>
+      <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:8px">
+        <div class="setting-sub" style="font-size:12px;color:var(--muted)">
+          Verilerini telefon ↔ bilgisayar arasında taşımak için kullan.
+        </div>
+        <button class="big-btn primary" style="margin-bottom:0" onclick="exportData()">⬆ Veriyi Dışa Aktar</button>
+        <label class="big-btn secondary" style="margin-bottom:0;text-align:center;cursor:pointer">
+          ⬇ Veriyi İçe Aktar
+          <input type="file" accept=".json" style="display:none" onchange="importData(event)">
+        </label>
+      </div>
+    </div>
+
     <button class="big-btn danger" onclick="confirmResetProgress()">🗑 Bugünkü İlerlemeyi Sıfırla</button>
     <button class="big-btn danger" onclick="confirmResetAll()">⚠ Tüm Verileri Sıfırla</button>
   </div>
@@ -1143,6 +1158,40 @@ function confirmResetAll() {
   D = null;
   showToast('Veriler sıfırlandı, yeniden yükleniyor...');
   setTimeout(()=>location.reload(), 1500);
+}
+
+function exportData() {
+  const data = localStorage.getItem(STORAGE_KEY);
+  if (!data) { showToast('Dışa aktarılacak veri yok'); return; }
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `spor-yedek-${dateKey()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ Veri dosyası indirildi');
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (!parsed.days || !parsed.meals) throw new Error('Geçersiz format');
+      if (!confirm('Mevcut veriler silinip yeni verilerle değiştirilecek. Devam?')) return;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      D = null;
+      showToast('✓ Veri içe aktarıldı, yeniden yükleniyor...');
+      setTimeout(() => location.reload(), 1500);
+    } catch {
+      showToast('Hata: Geçersiz yedek dosyası');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 }
 
 // ─── NOTIFICATIONS ────────────────────────────────────────────────────────────

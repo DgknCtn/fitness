@@ -24,8 +24,8 @@ self.addEventListener('message', e => {
   if (e.data && e.data.type === 'NOTIFY') {
     self.registration.showNotification(e.data.title, {
       body: e.data.body,
-      icon: '/icon.png',
-      badge: '/icon.png',
+      icon: '/fitness/icon.svg',
+      badge: '/fitness/icon.svg',
       vibrate: [200, 100, 200],
     });
   }
