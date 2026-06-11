@@ -685,15 +685,20 @@ function renderTabs() {
   const d = getData();
   const now = new Date();
   const todayDow = now.getDay();
+
+  // Bu haftanın Pazartesi'sini bul (Paz=0 ise 6 gün geri, diğer günler dow-1 geri)
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (todayDow === 0 ? 6 : todayDow - 1));
+
   const container = document.getElementById('day-tabs');
   container.innerHTML = '';
   for(let i=0;i<7;i++) {
-    const dow = (1+i)%7;
-    let diff = dow-todayDow; if(diff<0) diff+=7;
-    const date = new Date(now); date.setDate(date.getDate()+diff);
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + i);
+    const dow = date.getDay();
     const cfg = d.days[dow];
+    const isToday = dow === todayDow;
     const tab = document.createElement('div');
-    const isToday = dow===todayDow;
     tab.className = `day-tab c-${cfg.color} ${isToday?'today':''} ${dow===selectedDow?'active':''}`;
     tab.dataset.dow = dow;
     tab.innerHTML = `<span class="day-name">${DAYS_TR[dow]}</span><span class="day-num">${date.getDate()}</span><span class="day-type">${cfg.name.slice(0,4).toUpperCase()}</span>`;
