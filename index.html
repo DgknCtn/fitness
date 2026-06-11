@@ -1178,17 +1178,21 @@ function importData(e) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = ev => {
+    let parsed;
     try {
-      const parsed = JSON.parse(ev.target.result);
-      if (!parsed.days || !parsed.meals) throw new Error('Geçersiz format');
-      if (!confirm('Mevcut veriler silinip yeni verilerle değiştirilecek. Devam?')) return;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
-      D = null;
-      showToast('✓ Veri içe aktarıldı, yeniden yükleniyor...');
-      setTimeout(() => location.reload(), 1500);
+      parsed = JSON.parse(ev.target.result);
     } catch {
-      showToast('Hata: Geçersiz yedek dosyası');
+      showToast('Hata: Dosya okunamadı (geçersiz JSON)');
+      return;
     }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      showToast('Hata: Geçersiz yedek dosyası');
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    D = null;
+    showToast('✓ Veri içe aktarıldı, yeniden yükleniyor...');
+    setTimeout(() => location.reload(), 1500);
   };
   reader.readAsText(file);
   e.target.value = '';
