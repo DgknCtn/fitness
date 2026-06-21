@@ -253,6 +253,10 @@ html,body{height:100%;width:100%;background:var(--bg);color:var(--text);font-fam
 /* TOAST */
 .toast{position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:10px 18px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;white-space:nowrap;z-index:999;pointer-events:none}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* TYPE PICKER */
+.day-header-badge{gap:6px}
+.badge:active{opacity:.7}
 </style>
 </head>
 <body>
@@ -471,20 +475,28 @@ const PILL_TYPES = [
 ];
 const COLOR_OPTS = ['push','pull','legs','swim','cardio'];
 const COLOR_HEX  = {push:'#ff6b8a',pull:'#6b9fff',legs:'#6bffa0',swim:'#6be8ff',cardio:'#ffb86b'};
+const WORKOUT_TYPE_META = {
+  push:      { name:'Push',          color:'push', isTraining:true  },
+  pull:      { name:'Pull',          color:'pull', isTraining:true  },
+  legs:      { name:'Legs + Push 2', color:'legs', isTraining:true  },
+  pull2legs: { name:'Pull 2 + Legs', color:'pull', isTraining:true  },
+  rest:      { name:'Dinlenme',      color:'swim', isTraining:false },
+};
 
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
 function defaultData() {
   return {
     days: {
-      0:{name:'Dinlenme',      isTraining:false, color:'swim'},
-      1:{name:'Push',          isTraining:true,  color:'push'},
-      2:{name:'Pull',          isTraining:true,  color:'pull'},
-      3:{name:'Legs + Push 2',  isTraining:true,  color:'legs'},
-      4:{name:'Dinlenme',      isTraining:false, color:'swim'},
-      5:{name:'Dinlenme',      isTraining:false, color:'swim'},
-      6:{name:'Pull 2 + Legs', isTraining:true,  color:'pull'},
+      0:{name:'Dinlenme',      isTraining:false, color:'swim', typeKey:'rest'     },
+      1:{name:'Push',          isTraining:true,  color:'push', typeKey:'push'     },
+      2:{name:'Pull',          isTraining:true,  color:'pull', typeKey:'pull'     },
+      3:{name:'Legs + Push 2', isTraining:true,  color:'legs', typeKey:'legs'     },
+      4:{name:'Dinlenme',      isTraining:false, color:'swim', typeKey:'rest'     },
+      5:{name:'Dinlenme',      isTraining:false, color:'swim', typeKey:'rest'     },
+      6:{name:'Pull 2 + Legs', isTraining:true,  color:'pull', typeKey:'pull2legs'},
     },
+    dateWorkoutType: {},
     trainSchedule: [
       {id:uid(), time:'07:30', title:'Sabah Supplement', pills:[{t:'Vitamin C',c:'supp'},{t:'Omega-3',c:'supp'},{t:'Kreatin',c:'supp'}]},
       {id:uid(), time:'08:00', title:'Kahvaltı',         pills:[{t:'Kahvaltı',c:'food'}]},
@@ -503,17 +515,17 @@ function defaultData() {
       {id:uid(), time:'19:30', title:'Akşam Yemeği', pills:[{t:'Akşam Yemeği',c:'food'}]},
       {id:uid(), time:'23:00', title:'Uyku Öncesi',  pills:[{t:'Magnesium',c:'supp'}]},
     ],
-    workouts: {
-      1:[
+    workoutTypes: {
+      push:[
         {id:'p1_1', name:'Plate Loaded Chest Press',       note:'',                              sets:2, reps:'5-6',  warm:'Rir1'},
         {id:'p1_2', name:'Smith Machine Low Incline Press',note:'',                              sets:2, reps:'5-6',  warm:'Rir1'},
         {id:'p1_3', name:'Chest Fly Machine',              note:'',                              sets:1, reps:'6-8',  warm:'Failure'},
         {id:'p1_4', name:'Shoulder Press Machine',         note:'',                              sets:2, reps:'6-8',  warm:'Rir1'},
         {id:'p1_5', name:'Lateral Raise',                  note:'',                              sets:3, reps:'8-10', warm:'Failure'},
-        {id:'p1_6', name:'Triceps Pushdown',                note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'p1_6', name:'Triceps Pushdown',               note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
         {id:'p1_7', name:'Overhead Rope Extension',        note:'',                              sets:2, reps:'8-10', warm:'Failure'},
       ],
-      2:[
+      pull:[
         {id:'pu1_1', name:'Lat Pulldown',               note:'',                                 sets:2, reps:'6-8',  warm:'Rir1-Failure'},
         {id:'pu1_2', name:'Plate Loaded Wide Grip Row', note:'',                                 sets:3, reps:'6-8',  warm:'Rir1-Failure'},
         {id:'pu1_3', name:'Cable Row',                  note:'',                                 sets:1, reps:'8-10', warm:'Failure'},
@@ -521,7 +533,7 @@ function defaultData() {
         {id:'pu1_5', name:'Cable Curl',                 note:'',                                 sets:2, reps:'6-8',  warm:'Failure'},
         {id:'pu1_6', name:'Hammer Curl',                note:'Super Set → Reverse Barbell Curl', sets:2, reps:'8-10', warm:'Failure'},
       ],
-      3:[
+      legs:[
         {id:'l1_1', name:'Leg Press',                      note:'— LEGS —',                     sets:2, reps:'6-8',  warm:'Rir1-2'},
         {id:'l1_2', name:'Smith Machine Squat',            note:'',                              sets:2, reps:'6-8',  warm:'Rir1-2'},
         {id:'l1_3', name:'Leg Extension',                  note:'',                              sets:2, reps:'8-10', warm:'Failure'},
@@ -531,10 +543,10 @@ function defaultData() {
         {id:'p2_3', name:'Smith Machine Low Incline Press',note:'',                              sets:2, reps:'5-6',  warm:'Rir1'},
         {id:'p2_4', name:'Chest Fly Machine',              note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
         {id:'p2_5', name:'Cable Rear Delt Fly',            note:'',                              sets:2, reps:'8-10', warm:'Failure'},
-        {id:'p2_6', name:'Triceps Pushdown',                note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
+        {id:'p2_6', name:'Triceps Pushdown',               note:'',                              sets:2, reps:'6-8',  warm:'Failure'},
         {id:'p2_7', name:'Overhead Rope Extension',        note:'',                              sets:2, reps:'8-10', warm:'Failure'},
       ],
-      6:[
+      pull2legs:[
         {id:'pu2_1', name:'Plate Loaded Wide Grip Row', note:'',                                 sets:3, reps:'6-8',  warm:'Rir1-Failure'},
         {id:'pu2_2', name:'Lat Pulldown',               note:'',                                 sets:3, reps:'6-8',  warm:'Rir1-Failure'},
         {id:'pu2_3', name:'Romanian Deadlift',          note:'',                                 sets:2, reps:'5-6',  warm:'Rir1-2'},
@@ -543,6 +555,7 @@ function defaultData() {
         {id:'pu2_6', name:'Leg Extension',              note:'',                                 sets:2, reps:'6-8',  warm:'Failure'},
         {id:'pu2_7', name:'Seated Leg Curl',            note:'',                                 sets:1, reps:'8-10', warm:'Failure'},
       ],
+      rest:[],
     },
     trainMeals: [
       {id:uid(), time:'08:00', title:'Kahvaltı',    body:'5 yumurta beyazı + 1 tam\n60g yulaf\n1 muz',  macro:'~480 kcal | P:40g'},
@@ -574,9 +587,37 @@ function getData() {
   if (D) return D;
   try { D = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultData(); }
   catch { D = defaultData(); }
+  // Migration: old format keyed workouts by day-of-week number
+  if (D.workouts && !D.workoutTypes) {
+    D.workoutTypes = {
+      push:      D.workouts[1] || [],
+      pull:      D.workouts[2] || [],
+      legs:      D.workouts[3] || [],
+      pull2legs: D.workouts[6] || [],
+      rest:      [],
+    };
+    D.dateWorkoutType = {};
+    const typeKeyMap = {0:'rest',1:'push',2:'pull',3:'legs',4:'rest',5:'rest',6:'pull2legs'};
+    Object.entries(typeKeyMap).forEach(([dow,tk]) => { if (D.days[dow]) D.days[dow].typeKey = tk; });
+    delete D.workouts;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(D));
+  }
+  if (!D.dateWorkoutType) D.dateWorkoutType = {};
+  if (!D.workoutTypes)    D.workoutTypes = { push:[], pull:[], legs:[], pull2legs:[], rest:[] };
   return D;
 }
 function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(getData())); }
+
+function toDateStr(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+function getTypeKeyForDate(dateStr) {
+  const d = getData();
+  if (d.dateWorkoutType && d.dateWorkoutType[dateStr]) return d.dateWorkoutType[dateStr];
+  const dow = new Date(dateStr + 'T12:00:00').getDay();
+  return (d.days[dow] && d.days[dow].typeKey) || 'rest';
+}
 
 // ─── PILL COMPLETION ─────────────────────────────────────────────────────────
 function dateKey() {
@@ -596,37 +637,47 @@ function handlePillClick(k, el) { togglePill(k); el.classList.toggle('done'); }
 
 // ─── RENDER BUGÜN ────────────────────────────────────────────────────────────
 let selectedDow = -1;
+let selectedDate = '';
 
-function getScheduleForDow(dow) {
+function getScheduleForDate(dateStr) {
   const d = getData();
-  const cfg = d.days[dow];
-  const items = cfg.isTraining ? d.trainSchedule : d.restSchedule;
+  const typeKey = getTypeKeyForDate(dateStr);
+  const meta = WORKOUT_TYPE_META[typeKey] || WORKOUT_TYPE_META.rest;
+  const items = meta.isTraining ? d.trainSchedule : d.restSchedule;
   return items.map(item => ({
     ...item,
-    pills: item.pills.map(p => ({
-      ...p, t: p.t === '{GÜN}' ? cfg.name : p.t
-    }))
+    pills: item.pills.map(p => ({ ...p, t: p.t === '{GÜN}' ? meta.name : p.t }))
   }));
 }
 
-function renderDay(dow) {
+function getScheduleForDow(dow) {
+  return getScheduleForDate(todayStr());
+}
+
+function renderDay(dow, dateStr) {
   selectedDow = dow;
+  selectedDate = dateStr || toDateStr(new Date());
   const d = getData();
-  const cfg = d.days[dow];
-  const schedule = getScheduleForDow(dow);
-  const workout  = cfg.isTraining ? (d.workouts[dow] || []) : null;
-  const meals    = cfg.isTraining ? d.trainMeals : d.restMeals;
-  const macros   = cfg.isTraining ? d.macros.train : d.macros.rest;
+  const typeKey = getTypeKeyForDate(selectedDate);
+  const meta = WORKOUT_TYPE_META[typeKey] || WORKOUT_TYPE_META.rest;
+  const schedule = getScheduleForDate(selectedDate);
+  const workout  = meta.isTraining ? (d.workoutTypes[typeKey] || []) : null;
+  const meals    = meta.isTraining ? d.trainMeals : d.restMeals;
+  const macros   = meta.isTraining ? d.macros.train : d.macros.rest;
+  const isOverridden = !!(d.dateWorkoutType && d.dateWorkoutType[selectedDate]);
 
   const now = new Date();
   const nowMins = now.getHours()*60+now.getMinutes();
-  const isToday = now.getDay()===dow;
+  const isToday = toDateStr(now) === selectedDate;
 
-  // Badge
-  const typeColor = {push:'#ff6b8a',pull:'#6b9fff',legs:'#6bffa0',swim:'#6be8ff',cardio:'#ffb86b'}[cfg.color]||'#fff';
-  const badge = cfg.isTraining
-    ? `<span class="badge" style="background:rgba(255,107,138,.12);color:var(--push)">${cfg.name}</span>`
-    : `<span class="badge" style="background:rgba(107,232,255,.12);color:var(--swim)">Dinlenme</span>`;
+  // Badge (tıklanabilir tip seçici)
+  const typeColor = COLOR_HEX[meta.color] || '#fff';
+  const badge = meta.isTraining
+    ? `<span class="badge" style="background:rgba(255,107,138,.12);color:var(--push);cursor:pointer" onclick="openTypePicker('${selectedDate}')">${meta.name} ▾</span>`
+    : `<span class="badge" style="background:rgba(107,232,255,.12);color:var(--swim);cursor:pointer" onclick="openTypePicker('${selectedDate}')">Dinlenme ▾</span>`;
+  const resetBadge = isOverridden
+    ? `<span class="badge" style="background:rgba(255,221,107,.12);color:var(--drug);cursor:pointer;font-size:10px" onclick="resetDayOverride('${selectedDate}')">× varsayılan</span>`
+    : '';
 
   // Timeline
   const timelineHTML = schedule.map(item => {
@@ -667,14 +718,14 @@ function renderDay(dow) {
         </div>
       </div>`;
     }).join('');
-    const c = COLOR_HEX[cfg.color]||'var(--muted)';
+    const c = COLOR_HEX[meta.color]||'var(--muted)';
     workoutHTML = `<div class="workout-section">
-      <div class="workout-header" style="color:${c}">${cfg.name.toUpperCase()} — EGZERSİZLER</div>
+      <div class="workout-header" style="color:${c}">${meta.name.toUpperCase()} — EGZERSİZLER</div>
       <div class="workout-group">${exsHTML}</div>
     </div>`;
   } else if(workout) {
     workoutHTML = `<div class="workout-section">
-      <div class="workout-header" style="color:var(--muted)">${cfg.name.toUpperCase()} — EGZERSİZLER</div>
+      <div class="workout-header" style="color:var(--muted)">${meta.name.toUpperCase()} — EGZERSİZLER</div>
       <div class="workout-group" style="color:var(--muted);font-size:13px;padding:16px 14px">
         Henüz egzersiz eklenmedi. <span style="color:var(--push);cursor:pointer" onclick="switchPage('edit')">Düzenle →</span>
       </div>
@@ -691,7 +742,7 @@ function renderDay(dow) {
     </div>`).join('');
 
   document.getElementById('day-content').innerHTML = `
-    <div class="day-header-badge">${badge}</div>
+    <div class="day-header-badge">${badge}${resetBadge}</div>
     <div class="timeline">${timelineHTML}</div>
     ${workoutHTML}
     <div class="meal-section">${mealsHTML}</div>
@@ -702,8 +753,8 @@ function renderDay(dow) {
       <div class="macro-box"><div class="macro-val" style="color:var(--muted)">${macros.fat}</div><div class="macro-lbl">yağ</div></div>
     </div>`;
 
-  document.querySelectorAll('.day-tab').forEach(tab =>
-    tab.classList.toggle('active', parseInt(tab.dataset.dow)===dow));
+  document.querySelectorAll('#day-tabs .day-tab').forEach(tab =>
+    tab.classList.toggle('active', tab.dataset.date===selectedDate));
   updateProgress();
   updateNextItem();
 }
@@ -711,11 +762,10 @@ function renderDay(dow) {
 function timeToMins(t) { const [h,m]=t.split(':').map(Number); return h*60+m; }
 
 function renderTabs() {
-  const d = getData();
   const now = new Date();
   const todayDow = now.getDay();
+  const todayDateStr = toDateStr(now);
 
-  // Bu haftanın Pazartesi'sini bul (Paz=0 ise 6 gün geri, diğer günler dow-1 geri)
   const monday = new Date(now);
   monday.setDate(now.getDate() - (todayDow === 0 ? 6 : todayDow - 1));
 
@@ -725,21 +775,24 @@ function renderTabs() {
     const date = new Date(monday);
     date.setDate(monday.getDate() + i);
     const dow = date.getDay();
-    const cfg = d.days[dow];
-    const isToday = dow === todayDow;
+    const dateStr = toDateStr(date);
+    const typeKey = getTypeKeyForDate(dateStr);
+    const meta = WORKOUT_TYPE_META[typeKey] || WORKOUT_TYPE_META.rest;
+    const isToday = dateStr === todayDateStr;
     const tab = document.createElement('div');
-    tab.className = `day-tab c-${cfg.color} ${isToday?'today':''} ${dow===selectedDow?'active':''}`;
+    tab.className = `day-tab c-${meta.color} ${isToday?'today':''} ${dateStr===selectedDate?'active':''}`;
+    tab.dataset.date = dateStr;
     tab.dataset.dow = dow;
-    tab.innerHTML = `<span class="day-name">${DAYS_TR[dow]}</span><span class="day-num">${date.getDate()}</span><span class="day-type">${cfg.name.slice(0,4).toUpperCase()}</span>`;
-    tab.onclick = ()=>renderDay(dow);
+    tab.innerHTML = `<span class="day-name">${DAYS_TR[dow]}</span><span class="day-num">${date.getDate()}</span><span class="day-type">${meta.name.slice(0,4).toUpperCase()}</span>`;
+    tab.onclick = ()=>renderDay(dow, dateStr);
     container.appendChild(tab);
   }
 }
 
 function updateProgress() {
-  const now = new Date();
-  if(selectedDow!==now.getDay()){ document.getElementById('progress-fill').style.width='0%'; return; }
-  const sched = getScheduleForDow(selectedDow);
+  const todayDateStr = toDateStr(new Date());
+  if(selectedDate !== todayDateStr){ document.getElementById('progress-fill').style.width='0%'; return; }
+  const sched = getScheduleForDate(selectedDate);
   let total=0, done=0;
   sched.forEach(item=>item.pills.forEach(p=>{ total++; if(isPillDone(pillKey(item.time,p.t))) done++; }));
   document.getElementById('progress-fill').style.width=(total?Math.round(done/total*100):0)+'%';
@@ -747,8 +800,10 @@ function updateProgress() {
 
 function updateNextItem() {
   const now = new Date();
-  const isToday = selectedDow===now.getDay();
-  const sched = getScheduleForDow(selectedDow>=0?selectedDow:now.getDay());
+  const todayDateStr = toDateStr(now);
+  const isToday = selectedDate === todayDateStr;
+  const dateToUse = selectedDate || todayDateStr;
+  const sched = getScheduleForDate(dateToUse);
   if(isToday) {
     const nowMins = now.getHours()*60+now.getMinutes();
     const next = sched.find(s=>timeToMins(s.time)>nowMins);
@@ -757,6 +812,58 @@ function updateNextItem() {
     const first = sched[0];
     document.getElementById('next-text').textContent = first?`${first.time} — ${first.title}`:'—';
   }
+}
+
+// ─── TİP SEÇİCİ ──────────────────────────────────────────────────────────────
+function openTypePicker(dateStr) {
+  const d = getData();
+  const dow = new Date(dateStr + 'T12:00:00').getDay();
+  const currentTypeKey = getTypeKeyForDate(dateStr);
+  const defaultTypeKey = (d.days[dow] && d.days[dow].typeKey) || 'rest';
+
+  document.getElementById('sheet-title').textContent = 'Antrenman Tipini Seç';
+  document.getElementById('sheet-body').innerHTML = Object.entries(WORKOUT_TYPE_META).map(([key, meta]) => {
+    const isActive  = key === currentTypeKey;
+    const isDefault = key === defaultTypeKey;
+    const c = COLOR_HEX[meta.color] || '#fff';
+    return `<div class="edit-row" onclick="setDayType('${dateStr}','${key}')" style="cursor:pointer;margin-bottom:4px${isActive?`;border-color:${c}`:''}" >
+      <div class="color-dot" style="background:${c}"></div>
+      <div style="flex:1">
+        <div class="edit-row-title" style="${isActive?`color:${c}`:''}">
+          ${meta.name}${isDefault?' <span style="font-size:10px;color:var(--muted);font-weight:400">(varsayılan)</span>':''}
+        </div>
+        <div class="edit-row-time">${meta.isTraining?'Antrenman günü':'Dinlenme günü'}</div>
+      </div>
+      ${isActive?`<div style="color:${c};font-size:18px;font-weight:700">✓</div>`:''}
+    </div>`;
+  }).join('');
+  document.getElementById('sheet-save').style.display = 'none';
+  openSheet();
+}
+
+function setDayType(dateStr, typeKey) {
+  const d = getData();
+  const dow = new Date(dateStr + 'T12:00:00').getDay();
+  const defaultTypeKey = (d.days[dow] && d.days[dow].typeKey) || 'rest';
+  if (typeKey === defaultTypeKey) {
+    delete d.dateWorkoutType[dateStr];
+  } else {
+    d.dateWorkoutType[dateStr] = typeKey;
+  }
+  saveData();
+  closeSheet();
+  renderTabs();
+  renderDay(new Date(dateStr + 'T12:00:00').getDay(), dateStr);
+  showToast(`✓ ${WORKOUT_TYPE_META[typeKey].name} seçildi`);
+}
+
+function resetDayOverride(dateStr) {
+  const d = getData();
+  delete d.dateWorkoutType[dateStr];
+  saveData();
+  renderTabs();
+  renderDay(new Date(dateStr + 'T12:00:00').getDay(), dateStr);
+  showToast('Varsayılana döndürüldü');
 }
 
 // ─── CLOCK ────────────────────────────────────────────────────────────────────
@@ -773,7 +880,7 @@ function updateClock() {
 let activeEditTab = 'program';
 let activeSchedTab = 'train';
 let activeMealTab  = 'train';
-let activeWorkoutDow = 1;
+let activeWorkoutType = 'push';
 
 function switchEditTab(tab) {
   activeEditTab = tab;
@@ -844,7 +951,7 @@ function openEditDay(dow) {
     d.days[dow].name = document.getElementById('dc-name').value.trim()||cfg.name;
     d.days[dow].isTraining = document.getElementById('dc-train').checked;
     d.days[dow].color = selectedColor;
-    saveData(); closeSheet(); renderDayConfig(); renderTabs(); renderDay(selectedDow);
+    saveData(); closeSheet(); renderDayConfig(); renderTabs(); renderDay(selectedDow, selectedDate);
     showToast('✓ Gün güncellendi');
   };
   openSheet();
@@ -858,15 +965,14 @@ function selectColor(c, el) {
 
 // ── Workout Exercises ──
 function renderWorkoutDayTabs() {
-  const d = getData();
   const container = document.getElementById('workout-day-tabs');
   container.innerHTML = '';
-  Object.entries(d.days).filter(([,cfg])=>cfg.isTraining).forEach(([dow,cfg])=>{
+  Object.entries(WORKOUT_TYPE_META).filter(([,meta])=>meta.isTraining).forEach(([typeKey,meta])=>{
     const btn = document.createElement('div');
-    btn.className = `day-tab c-${cfg.color} ${parseInt(dow)===activeWorkoutDow?'active':''}`;
-    btn.style.cssText='min-width:48px;padding:6px 10px';
-    btn.innerHTML = `<span class="day-name">${DAYS_TR[dow]}</span><span class="day-type">${cfg.name.slice(0,4).toUpperCase()}</span>`;
-    btn.onclick = ()=>{ activeWorkoutDow=parseInt(dow); renderWorkoutDayTabs(); renderExerciseList(); };
+    btn.className = `day-tab c-${meta.color} ${typeKey===activeWorkoutType?'active':''}`;
+    btn.style.cssText='min-width:52px;padding:6px 10px';
+    btn.innerHTML = `<span class="day-type">${meta.name.slice(0,4).toUpperCase()}</span>`;
+    btn.onclick = ()=>{ activeWorkoutType=typeKey; renderWorkoutDayTabs(); renderExerciseList(); };
     container.appendChild(btn);
   });
   renderExerciseList();
@@ -874,10 +980,10 @@ function renderWorkoutDayTabs() {
 
 function renderExerciseList() {
   const d = getData();
-  const cfg = d.days[activeWorkoutDow];
-  document.getElementById('workout-edit-title').textContent = `${DAYS_TR[activeWorkoutDow]} — ${cfg.name} EGZERSİZLERİ`;
-  const exs = d.workouts[activeWorkoutDow]||[];
-  if(!d.workouts[activeWorkoutDow]) d.workouts[activeWorkoutDow]=[];
+  const meta = WORKOUT_TYPE_META[activeWorkoutType];
+  document.getElementById('workout-edit-title').textContent = `${meta.name.toUpperCase()} EGZERSİZLERİ`;
+  if(!d.workoutTypes[activeWorkoutType]) d.workoutTypes[activeWorkoutType]=[];
+  const exs = d.workoutTypes[activeWorkoutType];
   const list = document.getElementById('workout-exercise-list');
   if(!exs.length){
     list.innerHTML=`<div style="padding:16px;color:var(--muted);font-size:13px;text-align:center">Henüz egzersiz yok. Aşağıdan ekle.</div>`;
@@ -898,7 +1004,7 @@ function renderExerciseList() {
 
 function openEditExercise(idx) {
   const d = getData();
-  const ex = (d.workouts[activeWorkoutDow]||[])[idx]||{};
+  const ex = (d.workoutTypes[activeWorkoutType]||[])[idx]||{};
   document.getElementById('sheet-title').textContent = idx===-1?'Egzersiz Ekle':'Egzersiz Düzenle';
   document.getElementById('sheet-body').innerHTML = `
     <label class="f-label">Egzersiz Adı</label>
@@ -914,7 +1020,7 @@ function openEditExercise(idx) {
   document.getElementById('sheet-save').onclick = ()=>{
     const name = document.getElementById('ex-name').value.trim();
     if(!name){ showToast('Egzersiz adı gerekli'); return; }
-    if(!d.workouts[activeWorkoutDow]) d.workouts[activeWorkoutDow]=[];
+    if(!d.workoutTypes[activeWorkoutType]) d.workoutTypes[activeWorkoutType]=[];
     const obj = {
       id: ex.id||uid(), name,
       note: document.getElementById('ex-note').value.trim(),
@@ -922,9 +1028,9 @@ function openEditExercise(idx) {
       reps: document.getElementById('ex-reps').value.trim()||'8–12',
       warm: document.getElementById('ex-warm').value.trim(),
     };
-    if(idx===-1) d.workouts[activeWorkoutDow].push(obj);
-    else d.workouts[activeWorkoutDow][idx]=obj;
-    saveData(); closeSheet(); renderExerciseList(); renderDay(selectedDow);
+    if(idx===-1) d.workoutTypes[activeWorkoutType].push(obj);
+    else d.workoutTypes[activeWorkoutType][idx]=obj;
+    saveData(); closeSheet(); renderExerciseList(); renderDay(selectedDow, selectedDate);
     showToast('✓ Kaydedildi');
   };
   openSheet();
@@ -933,8 +1039,8 @@ function openEditExercise(idx) {
 function openAddExercise() { openEditExercise(-1); }
 function deleteExercise(idx) {
   const d=getData();
-  d.workouts[activeWorkoutDow].splice(idx,1);
-  saveData(); renderExerciseList(); renderDay(selectedDow);
+  d.workoutTypes[activeWorkoutType].splice(idx,1);
+  saveData(); renderExerciseList(); renderDay(selectedDow, selectedDate);
   showToast('Silindi');
 }
 
@@ -1003,7 +1109,7 @@ function openEditScheduleItem(idx) {
     if(idx===-1) arr.push(obj);
     else arr[idx]=obj;
     arr.sort((a,b)=>timeToMins(a.time)-timeToMins(b.time));
-    saveData(); closeSheet(); renderScheduleEdit(); renderDay(selectedDow);
+    saveData(); closeSheet(); renderScheduleEdit(); renderDay(selectedDow, selectedDate);
     showToast('✓ Kaydedildi');
   };
   openSheet();
@@ -1025,7 +1131,7 @@ function deleteScheduleItem(idx) {
   const d = getData();
   const arr = activeSchedTab==='train' ? d.trainSchedule : d.restSchedule;
   arr.splice(idx,1);
-  saveData(); renderScheduleEdit(); renderDay(selectedDow);
+  saveData(); renderScheduleEdit(); renderDay(selectedDow, selectedDate);
   showToast('Silindi');
 }
 
@@ -1090,7 +1196,7 @@ function openEditMeal(idx) {
     if(idx===-1) arr.push(obj);
     else arr[idx]=obj;
     arr.sort((a,b)=>timeToMins(a.time)-timeToMins(b.time));
-    saveData(); closeSheet(); renderMealEdit(); renderDay(selectedDow);
+    saveData(); closeSheet(); renderMealEdit(); renderDay(selectedDow, selectedDate);
     showToast('✓ Kaydedildi');
   };
   openSheet();
@@ -1101,7 +1207,7 @@ function deleteMeal(idx) {
   const d=getData();
   const arr = activeMealTab==='train' ? d.trainMeals : d.restMeals;
   arr.splice(idx,1);
-  saveData(); renderMealEdit(); renderDay(selectedDow);
+  saveData(); renderMealEdit(); renderDay(selectedDow, selectedDate);
   showToast('Silindi');
 }
 
@@ -1112,7 +1218,7 @@ function saveMacros() {
   d.macros[key].protein = document.getElementById('macro-protein').value.trim();
   d.macros[key].carb    = document.getElementById('macro-carb').value.trim();
   d.macros[key].fat     = document.getElementById('macro-fat').value.trim();
-  saveData(); renderDay(selectedDow);
+  saveData(); renderDay(selectedDow, selectedDate);
   showToast('✓ Makrolar güncellendi');
 }
 
@@ -1124,6 +1230,7 @@ function openSheet() {
 function closeSheet() {
   document.getElementById('overlay').classList.remove('open');
   document.getElementById('sheet').classList.remove('open');
+  document.getElementById('sheet-save').style.display = '';
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -1148,7 +1255,7 @@ function confirmResetProgress() {
   const keys=Object.keys(localStorage).filter(k=>k.startsWith(`pill_${dk}_`));
   if(!keys.length){ showToast('Bugün işaretlenmiş item yok'); return; }
   keys.forEach(k=>localStorage.removeItem(k));
-  renderDay(selectedDow);
+  renderDay(selectedDow, selectedDate);
   showToast(`✓ ${keys.length} item sıfırlandı`);
 }
 
@@ -1463,7 +1570,7 @@ function logWeight(exId, val) {
   else d.workoutLogs[exId].push(entry);
   saveData();
   // eğer ÖLÇÜM sayfası açıksa grafiği güncelle
-  if (activeExId === exId) renderExerciseChart(exId);
+  if (activeExName) renderExerciseChart(activeExName);
 }
 
 let activeExName = null;
@@ -1471,16 +1578,16 @@ let activeExName = null;
 // Aynı isimli egzersizleri tek grup altında topla
 function getExerciseGroups() {
   const d = getData();
-  const groups = new Map(); // küçük harf isim → {name, ids, days}
-  Object.entries(d.workouts).forEach(([dow, exs]) => {
+  const groups = new Map();
+  Object.entries(d.workoutTypes || {}).forEach(([typeKey, exs]) => {
     (exs || []).forEach(ex => {
       const key = ex.name.toLowerCase().trim();
       if (!groups.has(key)) {
-        groups.set(key, { name: ex.name, ids: [ex.id], days: [parseInt(dow)] });
+        groups.set(key, { name: ex.name, ids: [ex.id], typeKeys: [typeKey] });
       } else {
         const g = groups.get(key);
-        if (!g.ids.includes(ex.id))    g.ids.push(ex.id);
-        if (!g.days.includes(parseInt(dow))) g.days.push(parseInt(dow));
+        if (!g.ids.includes(ex.id))       g.ids.push(ex.id);
+        if (!g.typeKeys.includes(typeKey)) g.typeKeys.push(typeKey);
       }
     });
   });
@@ -1502,9 +1609,9 @@ function getMergedLogs(group) {
 }
 
 function groupColor(group) {
-  const d = getData();
-  const COLOR = { push:'#ff6b8a', pull:'#6b9fff', legs:'#6bffa0', swim:'#6be8ff', cardio:'#ffb86b' };
-  return COLOR[d.days[group.days[0]]?.color] || '#ff6b8a';
+  const typeKey = group.typeKeys ? group.typeKeys[0] : null;
+  const meta = typeKey ? WORKOUT_TYPE_META[typeKey] : null;
+  return (meta && COLOR_HEX[meta.color]) || '#ff6b8a';
 }
 
 function renderExerciseSelector() {
@@ -1520,13 +1627,12 @@ function renderExerciseSelector() {
     const last   = logs.length ? logs[logs.length - 1].weight + ' kg' : '—';
     const isActive = g.name === activeExName;
     const color  = groupColor(g);
-    // Birden fazla günde varsa gün listesini göster
-    const dayLabels = g.days.map(dow => d.days[dow]?.name || '').join(' + ');
+    const dayLabels = (g.typeKeys || []).map(tk => WORKOUT_TYPE_META[tk]?.name || '').join(' + ');
     return `<div class="metric-tab ${isActive ? 'active' : ''}"
       style="${isActive ? `border-color:${color};color:${color}` : ''}"
       onclick="selectExercise('${g.name.replace(/'/g,"\\'")}')">
       <div style="font-size:11px">${g.name}</div>
-      <div style="font-size:9px;opacity:.6;margin-top:1px">${last}${g.days.length > 1 ? ' · ' + dayLabels : ''}</div>
+      <div style="font-size:9px;opacity:.6;margin-top:1px">${last}${(g.typeKeys||[]).length > 1 ? ' · ' + dayLabels : ''}</div>
     </div>`;
   }).join('');
 }
@@ -1590,8 +1696,10 @@ function deleteMeasurement(idx) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
-  const todayDow=new Date().getDay();
-  renderDay(todayDow);
+  const now = new Date();
+  const todayDow = now.getDay();
+  const todayDateStr = toDateStr(now);
+  renderDay(todayDow, todayDateStr);
   renderTabs();
   updateClock();
   setInterval(updateClock,30000);
