@@ -485,6 +485,13 @@ const WORKOUT_TYPE_META = {
 
 function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 
+// Kullanıcı verisini innerHTML'e basmadan önce XSS'e karşı escape et
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 function defaultData() {
   return {
     days: {
@@ -624,8 +631,8 @@ function dateKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
-function pillKey(time, label) {
-  return `pill_${dateKey()}_${time.replace(':','')}_${String(label).replace(/[^a-zA-Z0-9]/g,'').slice(0,10)}`;
+function pillKey(itemId, pillIdx) {
+  return `pill_${dateKey()}_${itemId}_${pillIdx}`;
 }
 function isPillDone(k) { return localStorage.getItem(k)==='1'; }
 function togglePill(k) {
@@ -687,13 +694,13 @@ function renderDay(dow, dateStr) {
       if(mins < nowMins-30) cls='past';
       else if(Math.abs(mins-nowMins)<=30) cls='now';
     }
-    const pillsHTML = item.pills.map(p => {
-      const k = pillKey(item.time, p.t);
-      return `<span class="pill pill-${p.c}${isPillDone(k)?' done':''}" onclick="handlePillClick('${k}',this)">${p.t}</span>`;
+    const pillsHTML = item.pills.map((p,pi) => {
+      const k = pillKey(item.id, pi);
+      return `<span class="pill pill-${p.c}${isPillDone(k)?' done':''}" onclick="handlePillClick('${k}',this)">${escapeHtml(p.t)}</span>`;
     }).join('');
     return `<div class="t-item ${cls}">
       <div class="t-time">${item.time}</div>
-      <div class="t-body"><div class="t-title">${item.title}</div><div class="t-pills">${pillsHTML}</div></div>
+      <div class="t-body"><div class="t-title">${escapeHtml(item.title)}</div><div class="t-pills">${pillsHTML}</div></div>
     </div>`;
   }).join('');
 
@@ -705,15 +712,15 @@ function renderDay(dow, dateStr) {
       const savedW = localStorage.getItem(wk)||'';
       return `<div class="exercise-row">
         <div class="ex-info">
-          <div class="ex-name">${ex.name}</div>
-          ${ex.note?`<div class="ex-note">${ex.note}</div>`:''}
+          <div class="ex-name">${escapeHtml(ex.name)}</div>
+          ${ex.note?`<div class="ex-note">${escapeHtml(ex.note)}</div>`:''}
         </div>
         <div class="ex-right">
-          <input type="number" class="weight-input" placeholder="kg" value="${savedW}"
+          <input type="number" class="weight-input" placeholder="kg" value="${escapeHtml(savedW)}"
             onchange="logWeight('${ex.id}',this.value)" onclick="this.select()">
           <div class="ex-sets">
-            <span class="warm">${ex.warm||''}</span>
-            <span class="work">${ex.sets||'3'} × ${ex.reps||'8–12'}</span>
+            <span class="warm">${escapeHtml(ex.warm||'')}</span>
+            <span class="work">${escapeHtml(ex.sets||'3')} × ${escapeHtml(ex.reps||'8–12')}</span>
           </div>
         </div>
       </div>`;
@@ -735,10 +742,10 @@ function renderDay(dow, dateStr) {
   // Meals
   const mealsHTML = meals.map(m => `
     <div class="meal-card">
-      <div class="meal-time">${m.time}</div>
-      <div class="meal-title">${m.title}</div>
-      <div class="meal-body">${m.body.replace(/\n/g,'<br>')}</div>
-      <div class="meal-macro">${m.macro}</div>
+      <div class="meal-time">${escapeHtml(m.time)}</div>
+      <div class="meal-title">${escapeHtml(m.title)}</div>
+      <div class="meal-body">${escapeHtml(m.body).replace(/\n/g,'<br>')}</div>
+      <div class="meal-macro">${escapeHtml(m.macro)}</div>
     </div>`).join('');
 
   document.getElementById('day-content').innerHTML = `
@@ -747,10 +754,10 @@ function renderDay(dow, dateStr) {
     ${workoutHTML}
     <div class="meal-section">${mealsHTML}</div>
     <div class="macro-strip">
-      <div class="macro-box"><div class="macro-val" style="color:var(--drug)">${macros.kcal}</div><div class="macro-lbl">kcal</div></div>
-      <div class="macro-box"><div class="macro-val" style="color:var(--supp)">${macros.protein}</div><div class="macro-lbl">protein</div></div>
-      <div class="macro-box"><div class="macro-val" style="color:var(--pull)">${macros.carb}</div><div class="macro-lbl">karb</div></div>
-      <div class="macro-box"><div class="macro-val" style="color:var(--muted)">${macros.fat}</div><div class="macro-lbl">yağ</div></div>
+      <div class="macro-box"><div class="macro-val" style="color:var(--drug)">${escapeHtml(macros.kcal)}</div><div class="macro-lbl">kcal</div></div>
+      <div class="macro-box"><div class="macro-val" style="color:var(--supp)">${escapeHtml(macros.protein)}</div><div class="macro-lbl">protein</div></div>
+      <div class="macro-box"><div class="macro-val" style="color:var(--pull)">${escapeHtml(macros.carb)}</div><div class="macro-lbl">karb</div></div>
+      <div class="macro-box"><div class="macro-val" style="color:var(--muted)">${escapeHtml(macros.fat)}</div><div class="macro-lbl">yağ</div></div>
     </div>`;
 
   document.querySelectorAll('#day-tabs .day-tab').forEach(tab =>
@@ -794,7 +801,7 @@ function updateProgress() {
   if(selectedDate !== todayDateStr){ document.getElementById('progress-fill').style.width='0%'; return; }
   const sched = getScheduleForDate(selectedDate);
   let total=0, done=0;
-  sched.forEach(item=>item.pills.forEach(p=>{ total++; if(isPillDone(pillKey(item.time,p.t))) done++; }));
+  sched.forEach(item=>item.pills.forEach((p,pi)=>{ total++; if(isPillDone(pillKey(item.id,pi))) done++; }));
   document.getElementById('progress-fill').style.width=(total?Math.round(done/total*100):0)+'%';
 }
 
@@ -916,7 +923,7 @@ function renderDayConfig() {
     return `<div class="day-config-row" style="${cfg.isTraining?'border-color:rgba(255,107,138,.2)':''}">
       <div class="color-dot" style="background:${c}"></div>
       <div style="flex:1">
-        <div class="day-config-name">${DAYS_TR[dow]} — ${cfg.name}</div>
+        <div class="day-config-name">${DAYS_TR[dow]} — ${escapeHtml(cfg.name)}</div>
         <div class="day-config-sub">${cfg.isTraining?'Antrenman günü':'Dinlenme günü'}</div>
       </div>
       <button class="icon-btn" onclick="openEditDay(${dow})">✏</button>
@@ -934,7 +941,7 @@ function openEditDay(dow) {
   document.getElementById('sheet-title').textContent = `${DAYS_TR[dow]} — Düzenle`;
   document.getElementById('sheet-body').innerHTML = `
     <label class="f-label">Gün Adı / Antrenman Tipi</label>
-    <input class="f-input" id="dc-name" value="${cfg.name}" placeholder="Push, Full Body, Dinlenme...">
+    <input class="f-input" id="dc-name" value="${escapeHtml(cfg.name)}" placeholder="Push, Full Body, Dinlenme...">
     <label class="f-label">Renk</label>
     <div class="color-picker">${colorPicker}</div>
     <label class="f-label" style="margin-top:14px">Antrenman Günü</label>
@@ -992,8 +999,8 @@ function renderExerciseList() {
   list.innerHTML = exs.map((ex,i)=>`
     <div class="edit-row">
       <div class="edit-row-main">
-        <div class="edit-row-title">${ex.name}</div>
-        <div class="edit-row-time">${ex.sets||3} set × ${ex.reps||'8–12'} rep${ex.note?` · ${ex.note}`:''}</div>
+        <div class="edit-row-title">${escapeHtml(ex.name)}</div>
+        <div class="edit-row-time">${escapeHtml(ex.sets||3)} set × ${escapeHtml(ex.reps||'8–12')} rep${ex.note?` · ${escapeHtml(ex.note)}`:''}</div>
       </div>
       <div class="edit-row-actions">
         <button class="icon-btn" onclick="openEditExercise(${i})">✏</button>
@@ -1008,15 +1015,15 @@ function openEditExercise(idx) {
   document.getElementById('sheet-title').textContent = idx===-1?'Egzersiz Ekle':'Egzersiz Düzenle';
   document.getElementById('sheet-body').innerHTML = `
     <label class="f-label">Egzersiz Adı</label>
-    <input class="f-input" id="ex-name" value="${ex.name||''}" placeholder="Bench Press, Squat...">
+    <input class="f-input" id="ex-name" value="${escapeHtml(ex.name||'')}" placeholder="Bench Press, Squat...">
     <label class="f-label">Not / Ekipman</label>
-    <input class="f-input" id="ex-note" value="${ex.note||''}" placeholder="Barbell, Smith Machine...">
+    <input class="f-input" id="ex-note" value="${escapeHtml(ex.note||'')}" placeholder="Barbell, Smith Machine...">
     <label class="f-label">Set Sayısı</label>
-    <input class="f-input mono" id="ex-sets" type="number" value="${ex.sets||3}" min="1" max="10">
+    <input class="f-input mono" id="ex-sets" type="number" value="${escapeHtml(ex.sets||3)}" min="1" max="10">
     <label class="f-label">Rep</label>
-    <input class="f-input mono" id="ex-reps" value="${ex.reps||'8–12'}" placeholder="8–12, 6, 15...">
+    <input class="f-input mono" id="ex-reps" value="${escapeHtml(ex.reps||'8–12')}" placeholder="8–12, 6, 15...">
     <label class="f-label">Yoğunluk Notu</label>
-    <input class="f-input mono" id="ex-warm" value="${ex.warm||''}" placeholder="Rir1, Failure, Rir1-2...">`;
+    <input class="f-input mono" id="ex-warm" value="${escapeHtml(ex.warm||'')}" placeholder="Rir1, Failure, Rir1-2...">`;
   document.getElementById('sheet-save').onclick = ()=>{
     const name = document.getElementById('ex-name').value.trim();
     if(!name){ showToast('Egzersiz adı gerekli'); return; }
@@ -1057,11 +1064,11 @@ function renderScheduleEdit() {
   const items = activeSchedTab==='train' ? d.trainSchedule : d.restSchedule;
   const list = document.getElementById('schedule-edit-list');
   list.innerHTML = items.map((item,i)=>{
-    const pillsHTML = item.pills.map(p=>`<span class="pill pill-${p.c}">${p.t}</span>`).join('');
+    const pillsHTML = item.pills.map(p=>`<span class="pill pill-${p.c}">${escapeHtml(p.t)}</span>`).join('');
     return `<div class="edit-row">
       <div class="edit-row-main">
-        <div class="edit-row-time">${item.time}</div>
-        <div class="edit-row-title">${item.title}</div>
+        <div class="edit-row-time">${escapeHtml(item.time)}</div>
+        <div class="edit-row-title">${escapeHtml(item.title)}</div>
         <div class="edit-row-pills">${pillsHTML}</div>
       </div>
       <div class="edit-row-actions">
@@ -1084,14 +1091,14 @@ function openEditScheduleItem(idx) {
   const pillRows = item.pills.map((p,pi)=>`
     <div class="pill-editor-row" data-pi="${pi}">
       <select class="pill-type-sel">${pillTypeOptions(p.c)}</select>
-      <input class="pill-text-inp" value="${p.t}" placeholder="Supplement adı...">
+      <input class="pill-text-inp" value="${escapeHtml(p.t)}" placeholder="Supplement adı...">
       <button class="pill-del-btn" onclick="this.parentElement.remove()">×</button>
     </div>`).join('');
   document.getElementById('sheet-body').innerHTML = `
     <label class="f-label">Saat</label>
-    <input class="f-input mono" id="si-time" type="time" value="${item.time}">
+    <input class="f-input mono" id="si-time" type="time" value="${escapeHtml(item.time)}">
     <label class="f-label">Başlık</label>
-    <input class="f-input" id="si-title" value="${item.title}" placeholder="Öğle, Pre-Workout...">
+    <input class="f-input" id="si-title" value="${escapeHtml(item.title)}" placeholder="Öğle, Pre-Workout...">
     <label class="f-label">Etiketler (Pill)</label>
     <div class="pills-editor" id="pills-editor">${pillRows}</div>
     <button class="add-btn" style="margin-top:6px" onclick="addPillRow()">+ Etiket Ekle</button>`;
@@ -1150,9 +1157,9 @@ function renderMealEdit() {
   list.innerHTML = meals.map((m,i)=>`
     <div class="edit-row">
       <div class="edit-row-main">
-        <div class="edit-row-time">${m.time} — ${m.macro}</div>
-        <div class="edit-row-title">${m.title}</div>
-        <div class="edit-row-time" style="margin-top:3px;line-height:1.4">${m.body.replace(/\n/g,' · ')}</div>
+        <div class="edit-row-time">${escapeHtml(m.time)} — ${escapeHtml(m.macro)}</div>
+        <div class="edit-row-title">${escapeHtml(m.title)}</div>
+        <div class="edit-row-time" style="margin-top:3px;line-height:1.4">${escapeHtml(m.body).replace(/\n/g,' · ')}</div>
       </div>
       <div class="edit-row-actions">
         <button class="icon-btn" onclick="openEditMeal(${i})">✏</button>
@@ -1167,7 +1174,7 @@ function renderMealEdit() {
       ${['kcal','protein','carb','fat'].map(k=>`
         <div>
           <label class="f-label">${{kcal:'Kalori',protein:'Protein',carb:'Karbonhidrat',fat:'Yağ'}[k]}</label>
-          <input class="f-input mono" id="macro-${k}" value="${macros[k]}" placeholder="~2500">
+          <input class="f-input mono" id="macro-${k}" value="${escapeHtml(macros[k])}" placeholder="~2500">
         </div>`).join('')}
     </div>
     <button class="add-btn" style="margin-top:8px" onclick="saveMacros()">✓ Makroları Kaydet</button>`;
@@ -1180,13 +1187,13 @@ function openEditMeal(idx) {
   document.getElementById('sheet-title').textContent = idx===-1?'Öğün Ekle':'Öğünü Düzenle';
   document.getElementById('sheet-body').innerHTML = `
     <label class="f-label">Saat</label>
-    <input class="f-input mono" id="ml-time" type="time" value="${m.time}">
+    <input class="f-input mono" id="ml-time" type="time" value="${escapeHtml(m.time)}">
     <label class="f-label">Başlık</label>
-    <input class="f-input" id="ml-title" value="${m.title}" placeholder="Kahvaltı, Öğle...">
+    <input class="f-input" id="ml-title" value="${escapeHtml(m.title)}" placeholder="Kahvaltı, Öğle...">
     <label class="f-label">İçerik</label>
-    <textarea class="f-input f-textarea" id="ml-body" placeholder="Her satıra bir item...">${m.body}</textarea>
+    <textarea class="f-input f-textarea" id="ml-body" placeholder="Her satıra bir item...">${escapeHtml(m.body)}</textarea>
     <label class="f-label">Makro Özeti</label>
-    <input class="f-input mono" id="ml-macro" value="${m.macro}" placeholder="~500 kcal | P:40g">`;
+    <input class="f-input mono" id="ml-macro" value="${escapeHtml(m.macro)}" placeholder="~500 kcal | P:40g">`;
   document.getElementById('sheet-save').onclick = ()=>{
     const title = document.getElementById('ml-title').value.trim();
     if(!title){ showToast('Başlık gerekli'); return; }
@@ -1294,6 +1301,18 @@ function importData(e) {
     }
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       showToast('Hata: Geçersiz yedek dosyası');
+      return;
+    }
+    // Şema doğrulaması: beklenen alanların tipleri tutmalı
+    const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+    const schema = {
+      days: isObj, workoutTypes: isObj, macros: isObj, dateWorkoutType: isObj,
+      workoutLogs: isObj, trainSchedule: Array.isArray, restSchedule: Array.isArray,
+      trainMeals: Array.isArray, restMeals: Array.isArray, measurements: Array.isArray,
+    };
+    const present = Object.keys(schema).filter(k => k in parsed);
+    if (!present.length || present.some(k => !schema[k](parsed[k]))) {
+      showToast('Hata: Yedek dosyası tanınmadı');
       return;
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
@@ -1477,14 +1496,14 @@ function renderMeasureHistory(entries) {
   const sorted = [...entries].reverse();
   container.innerHTML = sorted.map((e,i)=>{
     const tags = METRICS.filter(m=>m.key!=='kilo' && e[m.key]!=null && e[m.key]!=='')
-      .map(m=>`<span class="measure-tag">${m.label}: ${e[m.key]}${m.unit}</span>`).join('');
+      .map(m=>`<span class="measure-tag">${m.label}: ${escapeHtml(e[m.key])}${m.unit}</span>`).join('');
     const origIdx = entries.length-1-i;
     return `<div class="measure-entry">
       <div class="measure-entry-top">
         <div>
           <div class="measure-date">${fmtDateLong(e.date)}</div>
-          <div class="measure-weight">${e.kilo||'—'} <span class="measure-weight-lbl">kg</span></div>
-          ${e.notes?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${e.notes}</div>`:''}
+          <div class="measure-weight">${escapeHtml(e.kilo||'—')} <span class="measure-weight-lbl">kg</span></div>
+          ${e.notes?`<div style="font-size:11px;color:var(--muted);margin-top:4px">${escapeHtml(e.notes)}</div>`:''}
         </div>
         <div style="display:flex;gap:6px">
           <button class="icon-btn" onclick="openEditMeasurement(${origIdx})">✏</button>
@@ -1520,18 +1539,18 @@ function openMeasurementSheet(idx) {
   document.getElementById('sheet-title').textContent = idx===-1 ? 'Ölçüm Ekle' : 'Ölçümü Düzenle';
   document.getElementById('sheet-body').innerHTML = `
     <label class="f-label">Tarih</label>
-    <input class="f-input mono" id="m-date" type="date" value="${e.date||todayStr()}">
+    <input class="f-input mono" id="m-date" type="date" value="${escapeHtml(e.date||todayStr())}">
     <label class="f-label">Kilo (kg)</label>
-    <input class="f-input mono" id="m-kilo" type="number" step="0.1" value="${e.kilo||''}" placeholder="82.5">
+    <input class="f-input mono" id="m-kilo" type="number" step="0.1" value="${escapeHtml(e.kilo||'')}" placeholder="82.5">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       ${METRICS.filter(m=>m.key!=='kilo').map(m=>`
         <div>
           <label class="f-label" style="margin-top:10px">${m.label} (${m.unit})</label>
-          <input class="f-input mono" id="m-${m.key}" type="number" step="0.1" value="${e[m.key]||''}" placeholder="—">
+          <input class="f-input mono" id="m-${m.key}" type="number" step="0.1" value="${escapeHtml(e[m.key]||'')}" placeholder="—">
         </div>`).join('')}
     </div>
     <label class="f-label" style="margin-top:12px">Not</label>
-    <input class="f-input" id="m-notes" value="${e.notes||''}" placeholder="Sabah aç karnına vb.">`;
+    <input class="f-input" id="m-notes" value="${escapeHtml(e.notes||'')}" placeholder="Sabah aç karnına vb.">`;
 
   document.getElementById('sheet-save').onclick = () => {
     const kilo = document.getElementById('m-kilo').value;
@@ -1630,9 +1649,9 @@ function renderExerciseSelector() {
     const dayLabels = (g.typeKeys || []).map(tk => WORKOUT_TYPE_META[tk]?.name || '').join(' + ');
     return `<div class="metric-tab ${isActive ? 'active' : ''}"
       style="${isActive ? `border-color:${color};color:${color}` : ''}"
-      onclick="selectExercise('${g.name.replace(/'/g,"\\'")}')">
-      <div style="font-size:11px">${g.name}</div>
-      <div style="font-size:9px;opacity:.6;margin-top:1px">${last}${(g.typeKeys||[]).length > 1 ? ' · ' + dayLabels : ''}</div>
+      data-exname="${escapeHtml(g.name)}" onclick="selectExercise(this.dataset.exname)">
+      <div style="font-size:11px">${escapeHtml(g.name)}</div>
+      <div style="font-size:9px;opacity:.6;margin-top:1px">${escapeHtml(last)}${(g.typeKeys||[]).length > 1 ? ' · ' + escapeHtml(dayLabels) : ''}</div>
     </div>`;
   }).join('');
 }
